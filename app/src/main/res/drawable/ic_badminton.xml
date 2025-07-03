@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="64dp"
+    android:height="64dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="@color/badminton_color"
+        android:pathData="M12,2C8.69,2 6,4.69 6,8s2.69,6 6,6s6,-2.69 6,-6S15.31,2 12,2zM12,12c-2.21,0 -4,-1.79 -4,-4s1.79,-4 4,-4s4,1.79 4,4S14.21,12 12,12z"/>
+    <path
+        android:fillColor="@color/badminton_color"
+        android:pathData="M11,14h2v8h-2V14z"/>
+    <circle
+        android:fillColor="@color/secondary_text"
+        android:cx="12"
+        android:cy="8"
+        android:radius="1"/>
+</vector>
