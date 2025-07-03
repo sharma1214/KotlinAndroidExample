@@ -4,8 +4,10 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.sportsmanagement.data.model.Match
 import com.example.sportsmanagement.data.model.SportCategory
 import com.example.sportsmanagement.data.model.User
+import com.example.sportsmanagement.data.repository.MatchRepository
 import com.example.sportsmanagement.data.repository.SportRepository
 import com.example.sportsmanagement.data.repository.UserRepository
 import kotlinx.coroutines.launch
@@ -13,6 +15,7 @@ import kotlinx.coroutines.launch
 class CategoryViewModel : ViewModel() {
     private val sportRepository = SportRepository()
     private val userRepository = UserRepository()
+    private val matchRepository = MatchRepository()
 
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
@@ -20,8 +23,11 @@ class CategoryViewModel : ViewModel() {
     private val _error = MutableLiveData<String?>()
     val error: LiveData<String?> = _error
 
-    private val _registrationSuccess = MutableLiveData<Boolean>()
-    val registrationSuccess: LiveData<Boolean> = _registrationSuccess
+    private val _registrationSuccess = MutableLiveData<String?>()
+    val registrationSuccess: LiveData<String?> = _registrationSuccess
+
+    private val _categories = MutableLiveData<List<SportCategory>>()
+    val categories: LiveData<List<SportCategory>> = _categories
 
     private val _selectedCategory = MutableLiveData<SportCategory?>()
     val selectedCategory: LiveData<SportCategory?> = _selectedCategory
@@ -29,12 +35,89 @@ class CategoryViewModel : ViewModel() {
     private val _categoryParticipants = MutableLiveData<List<User>>()
     val categoryParticipants: LiveData<List<User>> = _categoryParticipants
 
-    val categories: LiveData<List<SportCategory>> = sportRepository.categories
+    private val _categoryMatches = MutableLiveData<List<Match>>()
+    val categoryMatches: LiveData<List<Match>> = _categoryMatches
+
     val currentUser: LiveData<User?> = userRepository.currentUser
+
+    init {
+        loadCategories()
+    }
+
+    fun loadCategories() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val categories = sportRepository.getAllCategories()
+                _categories.value = categories
+            } catch (e: Exception) {
+                _error.value = "Failed to load categories: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun refreshCategories() {
+        loadCategories()
+    }
+
+    fun loadCategoryDetails(categoryId: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val category = sportRepository.getCategoryById(categoryId)
+                _selectedCategory.value = category
+                if (category != null) {
+                    loadCategoryParticipants(category.id)
+                    loadCategoryMatches(category.id)
+                }
+            } catch (e: Exception) {
+                _error.value = "Failed to load category details: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    private fun loadCategoryMatches(categoryId: String) {
+        viewModelScope.launch {
+            try {
+                val matches = matchRepository.getMatchesByCategory(categoryId)
+                _categoryMatches.value = matches
+            } catch (e: Exception) {
+                _error.value = "Failed to load category matches: ${e.message}"
+            }
+        }
+    }
+
+    fun toggleRegistration(categoryId: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val user = currentUser.value
+                if (user != null) {
+                    val isRegistered = user.registeredCategories.contains(categoryId)
+                    if (isRegistered) {
+                        unregisterFromCategory(categoryId)
+                    } else {
+                        registerForCategory(categoryId)
+                    }
+                } else {
+                    _error.value = "User not logged in"
+                }
+            } catch (e: Exception) {
+                _error.value = "Failed to update registration: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
 
     fun selectCategory(category: SportCategory) {
         _selectedCategory.value = category
         loadCategoryParticipants(category.id)
+        loadCategoryMatches(category.id)
     }
 
     fun registerForCategory(categoryId: String) {
@@ -45,19 +128,12 @@ class CategoryViewModel : ViewModel() {
                 try {
                     // Register user for category
                     val userResult = userRepository.registerForCategory(userId, categoryId)
-                    if (userResult.isSuccess) {
-                        // Add participant to category
-                        val categoryResult = sportRepository.addParticipantToCategory(categoryId, userId)
-                        if (categoryResult.isSuccess) {
-                            _registrationSuccess.value = true
-                            // Refresh category data
-                            _selectedCategory.value?.let { loadCategoryParticipants(it.id) }
-                        } else {
-                            _error.value = categoryResult.exceptionOrNull()?.message
-                        }
-                    } else {
-                        _error.value = userResult.exceptionOrNull()?.message
-                    }
+                    userRepository.registerForCategory(userId, categoryId)
+                    sportRepository.addParticipantToCategory(categoryId, userId)
+                    _registrationSuccess.value = "Successfully registered for category"
+                    // Refresh data
+                    loadCategories()
+                    _selectedCategory.value?.let { loadCategoryDetails(it.id) }
                 } catch (e: Exception) {
                     _error.value = e.message
                 } finally {
@@ -76,22 +152,12 @@ class CategoryViewModel : ViewModel() {
             val userId = userRepository.getCurrentUserId()
             if (userId != null) {
                 try {
-                    // Remove participant from category
-                    val categoryResult = sportRepository.removeParticipantFromCategory(categoryId, userId)
-                    if (categoryResult.isSuccess) {
-                        // Update user's registered categories
-                        val currentUser = userRepository.currentUser.value
-                        if (currentUser != null) {
-                            val updatedCategories = currentUser.registeredCategories.toMutableList()
-                            updatedCategories.remove(categoryId)
-                            val updatedUser = currentUser.copy(registeredCategories = updatedCategories)
-                            userRepository.updateUser(updatedUser)
-                        }
-                        // Refresh category data
-                        _selectedCategory.value?.let { loadCategoryParticipants(it.id) }
-                    } else {
-                        _error.value = categoryResult.exceptionOrNull()?.message
-                    }
+                    sportRepository.removeParticipantFromCategory(categoryId, userId)
+                    userRepository.unregisterFromCategory(userId, categoryId)
+                    _registrationSuccess.value = "Successfully unregistered from category"
+                    // Refresh data
+                    loadCategories()
+                    _selectedCategory.value?.let { loadCategoryDetails(it.id) }
                 } catch (e: Exception) {
                     _error.value = e.message
                 } finally {
@@ -140,6 +206,6 @@ class CategoryViewModel : ViewModel() {
     }
 
     fun clearRegistrationSuccess() {
-        _registrationSuccess.value = false
+        _registrationSuccess.value = null
     }
 }
