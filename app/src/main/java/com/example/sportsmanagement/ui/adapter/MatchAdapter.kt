@@ -8,6 +8,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.sportsmanagement.R
 import com.example.sportsmanagement.data.model.Match
+import com.example.sportsmanagement.data.model.MatchStatus
 import com.example.sportsmanagement.data.model.User
 import com.example.sportsmanagement.databinding.ItemMatchBinding
 import java.text.SimpleDateFormat
@@ -42,96 +43,98 @@ class MatchAdapter(
         private val binding: ItemMatchBinding
     ) : RecyclerView.ViewHolder(binding.root) {
 
+        private val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+        private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+
         fun bind(match: Match) {
-            // Player names
-            binding.player1NameText.text = match.player1Name ?: "Player 1"
-            binding.player2NameText.text = match.player2Name ?: "Player 2"
-            
-            // Scores
-            binding.player1ScoreText.text = match.score.player1Score.toString()
-            binding.player2ScoreText.text = match.score.player2Score.toString()
-            
-            // Match time
-            val dateFormat = SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault())
-            binding.matchTimeText.text = dateFormat.format(Date(match.scheduledTime))
-            
-            // Venue
-            binding.venueText.text = match.venue
-            
-            // Match status
-            binding.matchStatusText.text = match.status.name
-            val statusColor = when (match.status) {
-                Match.Status.LIVE -> R.color.live_match_color
-                Match.Status.SCHEDULED -> R.color.scheduled_match_color
-                Match.Status.COMPLETED -> R.color.completed_match_color
-                Match.Status.CANCELLED -> R.color.cancelled_match_color
-            }
-            binding.matchStatusText.setTextColor(binding.root.context.getColor(statusColor))
-            
-            // Live indicator
-            binding.liveIndicator.visibility = if (match.status == Match.Status.LIVE) View.VISIBLE else View.GONE
-            
-            // Winner highlight (for completed matches)
-            if (match.status == Match.Status.COMPLETED && match.winnerId != null) {
-                when (match.winnerId) {
-                    match.player1Id -> {
-                        binding.player1NameText.setTextColor(binding.root.context.getColor(R.color.winner_color))
-                        binding.player2NameText.setTextColor(binding.root.context.getColor(R.color.default_text_color))
+            binding.apply {
+                // Player names
+                player1NameText.text = match.player1Name ?: "Player 1"
+                player2NameText.text = match.player2Name ?: "Player 2"
+
+                // Venue and Round
+                venueText.text = match.venue
+                roundText.text = match.round
+
+                // Date and Time
+                val date = Date(match.scheduledTime)
+                matchDateText.text = dateFormat.format(date)
+                matchTimeText.text = timeFormat.format(date)
+
+                // Scores
+                player1ScoreText.text = match.score.player1Score.toString()
+                player2ScoreText.text = match.score.player2Score.toString()
+
+                // Match status
+                val statusColor = when (match.status) {
+                    Match.Status.LIVE, MatchStatus.LIVE -> R.color.live_color
+                    Match.Status.SCHEDULED, MatchStatus.SCHEDULED -> R.color.scheduled_color
+                    Match.Status.COMPLETED, MatchStatus.COMPLETED -> R.color.completed_color
+                    Match.Status.CANCELLED, MatchStatus.CANCELLED -> R.color.cancelled_color
+                    Match.Status.POSTPONED, MatchStatus.POSTPONED -> R.color.postponed_color
+                }
+                statusText.text = match.status.name
+                statusText.setTextColor(root.context.getColor(statusColor))
+
+                // Winner Highlight (for completed matches)
+                if (match.status == Match.Status.COMPLETED && match.winnerId != null) {
+                    if (match.winnerId == match.player1Id) {
+                        player1NameText.setTextColor(root.context.getColor(R.color.winner_color))
+                        player2NameText.setTextColor(root.context.getColor(R.color.default_text_color))
+                    } else if (match.winnerId == match.player2Id) {
+                        player2NameText.setTextColor(root.context.getColor(R.color.winner_color))
+                        player1NameText.setTextColor(root.context.getColor(R.color.default_text_color))
                     }
-                    match.player2Id -> {
-                        binding.player1NameText.setTextColor(binding.root.context.getColor(R.color.default_text_color))
-                        binding.player2NameText.setTextColor(binding.root.context.getColor(R.color.winner_color))
+                } else {
+                    player1NameText.setTextColor(root.context.getColor(R.color.default_text_color))
+                    player2NameText.setTextColor(root.context.getColor(R.color.default_text_color))
+                }
+
+                // Live indicator
+                liveIndicator.visibility =
+                    if (match.status == Match.Status.LIVE || match.status == MatchStatus.LIVE)
+                        View.VISIBLE else View.GONE
+
+                // Admin controls
+                val showAdminControls = currentUser?.isAdmin == true &&
+                        match.status == Match.Status.LIVE &&
+                        onScoreUpdate != null
+
+                adminControlsGroup.visibility =
+                    if (showAdminControls) View.VISIBLE else View.GONE
+
+                if (showAdminControls) {
+                    player1ScoreIncrement.setOnClickListener {
+                        val newScore = match.score.copy(player1Score = match.score.player1Score + 1)
+                        onScoreUpdate?.invoke(match, newScore)
                     }
-                    else -> {
-                        binding.player1NameText.setTextColor(binding.root.context.getColor(R.color.default_text_color))
-                        binding.player2NameText.setTextColor(binding.root.context.getColor(R.color.default_text_color))
+                    player1ScoreDecrement.setOnClickListener {
+                        val newScore = match.score.copy(player1Score = maxOf(0, match.score.player1Score - 1))
+                        onScoreUpdate?.invoke(match, newScore)
+                    }
+                    player2ScoreIncrement.setOnClickListener {
+                        val newScore = match.score.copy(player2Score = match.score.player2Score + 1)
+                        onScoreUpdate?.invoke(match, newScore)
+                    }
+                    player2ScoreDecrement.setOnClickListener {
+                        val newScore = match.score.copy(player2Score = maxOf(0, match.score.player2Score - 1))
+                        onScoreUpdate?.invoke(match, newScore)
                     }
                 }
-            } else {
-                binding.player1NameText.setTextColor(binding.root.context.getColor(R.color.default_text_color))
-                binding.player2NameText.setTextColor(binding.root.context.getColor(R.color.default_text_color))
+
+                // Card background color
+                val cardBackgroundRes = when (match.status) {
+                    Match.Status.LIVE -> R.color.live_match_background
+                    Match.Status.SCHEDULED -> R.color.scheduled_match_background
+                    Match.Status.COMPLETED -> R.color.completed_match_background
+                    Match.Status.CANCELLED -> R.color.cancelled_match_background
+                    else -> R.color.primary
+                }
+                matchCard.setCardBackgroundColor(root.context.getColor(cardBackgroundRes))
+
+                // Click listener
+                root.setOnClickListener { onMatchClick(match) }
             }
-            
-            // Admin controls (score update buttons)
-            val showAdminControls = currentUser?.isAdmin == true && 
-                                   match.status == Match.Status.LIVE && 
-                                   onScoreUpdate != null
-            
-            binding.adminControlsGroup.visibility = if (showAdminControls) View.VISIBLE else View.GONE
-            
-            if (showAdminControls) {
-                binding.player1ScoreIncrement.setOnClickListener {
-                    val newScore = match.score.copy(player1Score = match.score.player1Score + 1)
-                    onScoreUpdate?.invoke(match, newScore)
-                }
-                
-                binding.player1ScoreDecrement.setOnClickListener {
-                    val newScore = match.score.copy(player1Score = maxOf(0, match.score.player1Score - 1))
-                    onScoreUpdate?.invoke(match, newScore)
-                }
-                
-                binding.player2ScoreIncrement.setOnClickListener {
-                    val newScore = match.score.copy(player2Score = match.score.player2Score + 1)
-                    onScoreUpdate?.invoke(match, newScore)
-                }
-                
-                binding.player2ScoreDecrement.setOnClickListener {
-                    val newScore = match.score.copy(player2Score = maxOf(0, match.score.player2Score - 1))
-                    onScoreUpdate?.invoke(match, newScore)
-                }
-            }
-            
-            // Match card background based on status
-            val cardBackgroundRes = when (match.status) {
-                Match.Status.LIVE -> R.color.live_match_background
-                Match.Status.SCHEDULED -> R.color.scheduled_match_background
-                Match.Status.COMPLETED -> R.color.completed_match_background
-                Match.Status.CANCELLED -> R.color.cancelled_match_background
-            }
-            binding.matchCard.setCardBackgroundColor(binding.root.context.getColor(cardBackgroundRes))
-            
-            // Click listener
-            binding.root.setOnClickListener { onMatchClick(match) }
         }
     }
 

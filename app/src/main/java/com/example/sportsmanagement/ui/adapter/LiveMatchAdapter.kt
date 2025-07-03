@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.sportsmanagement.R
 import com.example.sportsmanagement.data.model.Match
+import com.example.sportsmanagement.data.model.MatchStatus
 import com.example.sportsmanagement.databinding.ItemLiveMatchBinding
 import java.text.SimpleDateFormat
 import java.util.*
@@ -37,55 +38,64 @@ class LiveMatchAdapter(
         private var pulseAnimator: ObjectAnimator? = null
 
         fun bind(match: Match) {
-            // Player names
-            binding.player1NameText.text = match.player1Name ?: "Player 1"
-            binding.player2NameText.text = match.player2Name ?: "Player 2"
-            
-            // Scores with larger, more prominent display
-            binding.player1ScoreText.text = match.score.player1Score.toString()
-            binding.player2ScoreText.text = match.score.player2Score.toString()
-            
-            // Match time
-            val dateFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-            binding.matchTimeText.text = dateFormat.format(Date(match.scheduledTime))
-            
-            // Venue
-            binding.venueText.text = match.venue
-            
-            // Category/Sport
-            binding.categoryText.text = match.categoryName ?: "Sport"
-            
-            // Set category color for visual identification
-            val categoryColor = getCategoryColor(match.categoryName ?: "")
-            binding.categoryIndicator.setBackgroundColor(binding.root.context.getColor(categoryColor))
-            
-            // Live indicator with pulsing animation
-            if (match.status == Match.Status.LIVE) {
-                binding.liveIndicator.visibility = View.VISIBLE
-                binding.liveText.visibility = View.VISIBLE
-                startPulseAnimation()
-                
-                // Highlight current leading player
-                highlightLeadingPlayer(match)
-            } else {
-                binding.liveIndicator.visibility = View.GONE
-                binding.liveText.visibility = View.GONE
-                stopPulseAnimation()
-                resetPlayerHighlight()
+            binding.apply {
+                // Category name
+                categoryNameText.text = match.categoryName ?: "Sport"
+
+                // Player names
+                player1NameText.text = match.player1Name ?: "Player 1"
+                player2NameText.text = match.player2Name ?: "Player 2"
+
+                // Scores
+                player1ScoreText.text = match.score.player1Score.toString()
+                player2ScoreText.text = match.score.player2Score.toString()
+
+                // Match time
+                val dateFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+                matchTimeText.text = dateFormat.format(Date(match.scheduledTime))
+
+                // Venue
+                venueText.text = match.venue
+
+                // Round info
+                roundText.text = match.round
+
+                // Category indicator color
+                val categoryColor = getCategoryColor(match.categoryName ?: "")
+                categoryIndicator.setBackgroundColor(root.context.getColor(categoryColor))
+
+                // Match status
+                when (match.status) {
+                    Match.Status.LIVE, MatchStatus.LIVE -> {
+                        liveIndicator.visibility = View.VISIBLE
+                        liveText.visibility = View.VISIBLE
+                        statusText.text = "LIVE"
+                        statusText.setTextColor(root.context.getColor(R.color.live_color))
+                        startPulseAnimation()
+                        highlightLeadingPlayer(match)
+
+                        // Duration
+                        val duration = System.currentTimeMillis() - match.scheduledTime
+                        val minutes = duration / (1000 * 60)
+                        durationText.text = "${minutes}m"
+                        durationText.visibility = View.VISIBLE
+                    }
+                    else -> {
+                        liveIndicator.visibility = View.GONE
+                        liveText.visibility = View.GONE
+                        statusText.text = match.status.name
+                        statusText.setTextColor(root.context.getColor(R.color.secondary_text))
+                        durationText.visibility = View.GONE
+                        stopPulseAnimation()
+                        resetPlayerHighlight()
+                    }
+                }
+
+                // Click listener
+                root.setOnClickListener {
+                    onMatchClick(match)
+                }
             }
-            
-            // Match duration (for live matches)
-            if (match.status == Match.Status.LIVE) {
-                val duration = System.currentTimeMillis() - match.scheduledTime
-                val minutes = duration / (1000 * 60)
-                binding.durationText.text = "${minutes}m"
-                binding.durationText.visibility = View.VISIBLE
-            } else {
-                binding.durationText.visibility = View.GONE
-            }
-            
-            // Click listener
-            binding.root.setOnClickListener { onMatchClick(match) }
         }
 
         private fun startPulseAnimation() {
@@ -105,24 +115,21 @@ class LiveMatchAdapter(
         private fun highlightLeadingPlayer(match: Match) {
             val player1Score = match.score.player1Score
             val player2Score = match.score.player2Score
-            
+
             when {
                 player1Score > player2Score -> {
-                    // Player 1 is leading
                     binding.player1ScoreText.setTextColor(binding.root.context.getColor(R.color.leading_player_color))
                     binding.player1NameText.setTextColor(binding.root.context.getColor(R.color.leading_player_color))
                     binding.player2ScoreText.setTextColor(binding.root.context.getColor(R.color.default_text_color))
                     binding.player2NameText.setTextColor(binding.root.context.getColor(R.color.default_text_color))
                 }
                 player2Score > player1Score -> {
-                    // Player 2 is leading
-                    binding.player1ScoreText.setTextColor(binding.root.context.getColor(R.color.default_text_color))
-                    binding.player1NameText.setTextColor(binding.root.context.getColor(R.color.default_text_color))
                     binding.player2ScoreText.setTextColor(binding.root.context.getColor(R.color.leading_player_color))
                     binding.player2NameText.setTextColor(binding.root.context.getColor(R.color.leading_player_color))
+                    binding.player1ScoreText.setTextColor(binding.root.context.getColor(R.color.default_text_color))
+                    binding.player1NameText.setTextColor(binding.root.context.getColor(R.color.default_text_color))
                 }
                 else -> {
-                    // Tied
                     resetPlayerHighlight()
                 }
             }

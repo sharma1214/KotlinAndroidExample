@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="64dp"
+    android:height="64dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="@color/carom_color"
+        android:pathData="M2,2v20h20V2H2zM4,4h16v16H4V4zM6,6v12h12V6H6zM8,8h8v8H8V8z"/>
+    <circle
+        android:fillColor="@color/secondary_text"
+        android:cx="12"
+        android:cy="12"
+        android:radius="1"/>
+</vector>
