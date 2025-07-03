@@ -65,4 +65,33 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- Sports Management App Colors -->
+    <!-- Text Colors -->
+    <color name="primary_text">#FF212121</color>
+    <color name="secondary_text">#FF757575</color>
+    
+    <!-- Status Colors -->
+    <color name="live_color">#FFFF5722</color>
+    <color name="scheduled_color">#FF2196F3</color>
+    <color name="completed_color">#FF4CAF50</color>
+    <color name="cancelled_color">#FFF44336</color>
+    <color name="postponed_color">#FFFF9800</color>
+    
+    <!-- Winner/Result Colors -->
+    <color name="winner_color">#FF4CAF50</color>
+    <color name="accent_color">#FF9C27B0</color>
+    
+    <!-- Background Colors -->
+    <color name="card_background">#FFFFFFFF</color>
+    <color name="light_gray">#FFF5F5F5</color>
+    <color name="divider_color">#FFE0E0E0</color>
+    
+    <!-- Sport Category Colors -->
+    <color name="chess_color">#FF795548</color>
+    <color name="carom_color">#FF607D8B</color>
+    <color name="table_tennis_color">#FFFF5722</color>
+    <color name="badminton_color">#FF009688</color>
+    <color name="cricket_color">#FF4CAF50</color>
+    <color name="billiards_color">#FF673AB7</color>
 </resources>
